@@ -4,75 +4,45 @@
   <meta charset="UTF-8">
   <title>ThingSpeak Distance Graph</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f4f4f4;
-    }
-    canvas {
-      max-width: 100%;
-      height: auto;
-    }
-    h2 {
-      text-align: center;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>Distance Over Time</h2>
+  <h2>Water Tank Level</h2>
   <canvas id="distanceChart"></canvas>
 
-  <script>
-    const url = "https://api.thingspeak.com/channels/3153556/fields/1.json?results=1440";
+  <button type="button" class="collapsible">Water Tank Configuration</button>
+  <div class="content">
+    <p>Water tank interior size</p>
+    <div class="config-row">
+      <label for="length">Length:</label>
+      <span><input type="number" id="length" name="length" value="114"> cm</span>
+    </div>
+    <div class="config-row">
+      <label for="width">Width:</label>
+      <span><input type="number" id="width" name="width" value="30"> cm</span>
+    </div>
+    <div class="config-row">
+      <label for="maxDepth">Max Depth:</label>
+      <span><input type="number" id="maxDepth" name="maxDepth" value="40"> cm</span>
+    </div>
+    <div class="config-row">
+      <label for="topMargin">Distance meter top margin:</label>
+      <span><input type="number" id="topMargin" name="topMargin" value="3"> cm</span>
+    </div>
+  </div>
 
-    fetch(url)
-      .then(response => response.json())
-      .then(data => {
-        const entries = data.feeds;
+  <button type="button" class="collapsible">Display Configuration</button>
+  <div class="content">
+    <div class="config-row">
+      <label for="almostFull">Almost full above:</label>
+      <span><input type="number" id="almostFull" name="almostFull" value="30"> cm</span>
+    </div>
+    <div class="config-row">
+      <label for="almostEmpty">Almost empty below:</label>
+      <span><input type="number" id="almostEmpty" name="almostEmpty" value="10"> cm</span>
+    </div>
+  </div>
 
-        const labels = entries.map(entry => {
-          const date = new Date(entry.created_at);
-          return date.getHours() + ":" + String(date.getMinutes()).padStart(2, '0');
-        });
-
-        const values = entries.map(entry => parseFloat(entry.field1));
-
-        const ctx = document.getElementById('distanceChart').getContext('2d');
-        new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [{
-              label: 'Distance (cm)',
-              data: values,
-              borderColor: 'rgba(75, 192, 192, 1)',
-              backgroundColor: 'rgba(75, 192, 192, 0.2)',
-              fill: true,
-              tension: 0.3
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              x: {
-                title: {
-                  display: true,
-                  text: 'Time (HH:MM)'
-                }
-              },
-              y: {
-                title: {
-                  display: true,
-                  text: 'Distance (cm)'
-                },
-                beginAtZero: true
-              }
-            }
-          }
-        });
-      })
-      .catch(error => console.error("Error fetching data:", error));
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
