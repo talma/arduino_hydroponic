@@ -45,7 +45,16 @@ document.addEventListener("DOMContentLoaded", function() {
         let labels = [];
         let values = [];
 
-        if (groupBy === 'hours') {
+        if (groupBy === 'minutes') {
+            labels = entries.map(entry => {
+                const date = new Date(entry.created_at);
+                return date.toLocaleString();
+            });
+            values = entries.map(entry => {
+                const distance = parseFloat(entry.field1);
+                return totalDepth - distance;
+            });
+        } else if (groupBy === 'hours') {
             const hourlyData = {}; // { 'YYYY-MM-DD HH:00': { sum: X, count: Y } }
             entries.forEach(entry => {
                 const date = new Date(entry.created_at);
@@ -107,7 +116,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     x: {
                         title: {
                             display: true,
-                            text: groupBy === 'hours' ? 'Time' : 'Date'
+                            text: groupBy === 'days' ? 'Date' : 'Time'
                         }
                     },
                     y: {
