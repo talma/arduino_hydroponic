@@ -9,6 +9,7 @@
 <body>
   <h2>Water Tank Level</h2>
   <canvas id="distanceChart"></canvas>
+  <p id="last-read-timestamp" style="text-align: center;"></p>
 
   <button type="button" class="collapsible">Water Tank Configuration</button>
   <div class="content">
@@ -34,12 +35,15 @@
   <button type="button" class="collapsible">Display Configuration</button>
   <div class="content">
     <div class="config-row">
-      <label for="almostFull">Almost full above:</label>
-      <span><input type="number" id="almostFull" name="almostFull" value="30"> cm</span>
+      <label for="groupBy">Group events by:</label>
+      <select id="groupBy" name="groupBy">
+        <option value="hours" selected>Hours</option>
+        <option value="days">Days</option>
+      </select>
     </div>
     <div class="config-row">
-      <label for="almostEmpty">Almost empty below:</label>
-      <span><input type="number" id="almostEmpty" name="almostEmpty" value="10"> cm</span>
+      <label for="lastDays">Show last:</label>
+      <span><input type="number" id="lastDays" name="lastDays" value="7"> days</span>
     </div>
   </div>
 

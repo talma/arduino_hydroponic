@@ -14,31 +14,75 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // Chart logic
-    const url = "https://api.thingspeak.com/channels/3153556/fields/1.json?results=1440";
     const maxDepthInput = document.getElementById('maxDepth');
     const topMarginInput = document.getElementById('topMargin');
+    const groupBySelect = document.getElementById('groupBy');
+    const lastDaysInput = document.getElementById('lastDays');
+
     const ctx = document.getElementById('distanceChart').getContext('2d');
     let chart;
     let apiData;
 
     function createOrUpdateChart() {
-        if (!apiData) return;
+        if (!apiData || !apiData.feeds || apiData.feeds.length === 0) {
+            document.getElementById('last-read-timestamp').textContent = 'Last read: No data available';
+            if (chart) chart.destroy();
+            return;
+        }
+
+        // Update last read timestamp
+        const lastEntry = apiData.feeds[apiData.feeds.length - 1];
+        const lastReadDate = new Date(lastEntry.created_at);
+        document.getElementById('last-read-timestamp').textContent = `Last read: ${lastReadDate.toLocaleString()}`;
 
         const maxDepth = parseFloat(maxDepthInput.value) || 0;
         const topMargin = parseFloat(topMarginInput.value) || 0;
         const totalDepth = maxDepth + topMargin;
+        const groupBy = groupBySelect.value;
 
         const entries = apiData.feeds;
 
-        const labels = entries.map(entry => {
-            const date = new Date(entry.created_at);
-            return date.getHours() + ":" + String(date.getMinutes()).padStart(2, '0');
-        });
+        let labels = [];
+        let values = [];
 
-        const values = entries.map(entry => {
-            const distance = parseFloat(entry.field1);
-            return totalDepth - distance;
-        });
+        if (groupBy === 'hours') {
+            const hourlyData = {}; // { 'YYYY-MM-DD HH:00': { sum: X, count: Y } }
+            entries.forEach(entry => {
+                const date = new Date(entry.created_at);
+                const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:00`;
+
+                if (!hourlyData[hourKey]) {
+                    hourlyData[hourKey] = { sum: 0, count: 0 };
+                }
+                const waterLevel = totalDepth - parseFloat(entry.field1);
+                if (!isNaN(waterLevel)) {
+                    hourlyData[hourKey].sum += waterLevel;
+                    hourlyData[hourKey].count++;
+                }
+            });
+
+            const sortedHours = Object.keys(hourlyData).sort();
+            labels = sortedHours;
+            values = sortedHours.map(hour => hourlyData[hour].sum / hourlyData[hour].count);
+        } else if (groupBy === 'days') {
+            const dailyData = {}; // { 'YYYY-MM-DD': { sum: X, count: Y } }
+            entries.forEach(entry => {
+                const date = new Date(entry.created_at);
+                const day = date.toISOString().split('T')[0];
+                if (!dailyData[day]) {
+                    dailyData[day] = { sum: 0, count: 0 };
+                }
+                const waterLevel = totalDepth - parseFloat(entry.field1);
+                if (!isNaN(waterLevel)) {
+                    dailyData[day].sum += waterLevel;
+                    dailyData[day].count++;
+                }
+            });
+
+            const sortedDays = Object.keys(dailyData).sort();
+            labels = sortedDays;
+            values = sortedDays.map(day => dailyData[day].sum / dailyData[day].count);
+        }
 
         if (chart) {
             chart.destroy();
@@ -63,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     x: {
                         title: {
                             display: true,
-                            text: 'Time (HH:MM)'
+                            text: groupBy === 'hours' ? 'Time' : 'Date'
                         }
                     },
                     y: {
@@ -78,15 +122,27 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            apiData = data;
-            createOrUpdateChart();
-        })
-        .catch(error => console.error("Error fetching data:", error));
+    function fetchDataAndUpdateChart() {
+        const days = parseInt(lastDaysInput.value, 10) || 1;
+        const results = days * 1440; // Assuming 1 entry per minute
+        const url = `https://api.thingspeak.com/channels/3153556/fields/1.json?results=${results}`;
 
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                apiData = data;
+                createOrUpdateChart();
+            })
+            .catch(error => console.error("Error fetching data:", error));
+    }
+
+    // Initial fetch
+    fetchDataAndUpdateChart();
+
+    // Add event listeners
     maxDepthInput.addEventListener('input', createOrUpdateChart);
     topMarginInput.addEventListener('input', createOrUpdateChart);
+    groupBySelect.addEventListener('change', createOrUpdateChart);
+    lastDaysInput.addEventListener('change', fetchDataAndUpdateChart);
 });
 
