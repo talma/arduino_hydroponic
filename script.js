@@ -73,7 +73,8 @@ document.addEventListener("DOMContentLoaded", function() {
             });
             values = entries.map(entry => {
                 const distance = parseFloat(entry.field1);
-                return totalDepth - distance;
+                const waterLevel = totalDepth - distance;
+                return parseFloat(waterLevel.toFixed(2));
             });
         } else if (groupBy === 'hours') {
             const hourlyData = {}; // { 'YYYY-MM-DD HH:00': { sum: X, count: Y } }
@@ -93,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             const sortedHours = Object.keys(hourlyData).sort();
             labels = sortedHours;
-            values = sortedHours.map(hour => hourlyData[hour].sum / hourlyData[hour].count);
+            values = sortedHours.map(hour => parseFloat((hourlyData[hour].sum / hourlyData[hour].count).toFixed(2)));
         } else if (groupBy === 'days') {
             const dailyData = {}; // { 'YYYY-MM-DD': { sum: X, count: Y } }
             entries.forEach(entry => {
@@ -111,7 +112,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             const sortedDays = Object.keys(dailyData).sort();
             labels = sortedDays;
-            values = sortedDays.map(day => dailyData[day].sum / dailyData[day].count);
+            values = sortedDays.map(day => parseFloat((dailyData[day].sum / dailyData[day].count).toFixed(2)));
         }
 
         if (chart) {
