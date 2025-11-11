@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const widthInput = document.getElementById('width');
     const maxDepthInput = document.getElementById('maxDepth');
     const topMarginInput = document.getElementById('topMargin');
+    const yAxisTypeSelect = document.getElementById('yAxisType');
     const groupBySelect = document.getElementById('groupBy');
     const lastDaysInput = document.getElementById('lastDays');
     const autoRefreshInput = document.getElementById('autoRefresh');
@@ -35,6 +36,7 @@ document.addEventListener("DOMContentLoaded", function() {
         width: 30,
         maxDepth: 40,
         topMargin: 3,
+        yAxisType: 'capacity',
         groupBy: 'hours',
         lastDays: 7,
         autoRefresh: 10
@@ -48,16 +50,25 @@ document.addEventListener("DOMContentLoaded", function() {
             return;
         }
 
+        const length = parseFloat(lengthInput.value) || 0;
+        const width = parseFloat(widthInput.value) || 0;
         const maxDepth = parseFloat(maxDepthInput.value) || 0;
         const topMargin = parseFloat(topMarginInput.value) || 0;
         const totalDepth = maxDepth + topMargin;
+        const yAxisType = yAxisTypeSelect.value;
 
         // Update last read timestamp and level
         const lastEntry = apiData.feeds[apiData.feeds.length - 1];
         const lastReadDate = new Date(lastEntry.created_at);
-        const lastWaterLevel = totalDepth - parseFloat(lastEntry.field1);
+        const lastWaterLevelCm = totalDepth - parseFloat(lastEntry.field1);
         document.getElementById('last-read-timestamp').textContent = `Last read: ${lastReadDate.toLocaleString()}`;
-        document.getElementById('last-read-level').textContent = `Last water level: ${lastWaterLevel.toFixed(2)} cm`;
+        
+        if (yAxisType === 'capacity') {
+            const lastWaterCapacity = lastWaterLevelCm * length * width / 1000;
+            document.getElementById('last-read-level').textContent = `Last water capacity: ${lastWaterCapacity.toFixed(2)} liter`;
+        } else {
+            document.getElementById('last-read-level').textContent = `Last water level: ${lastWaterLevelCm.toFixed(2)} cm`;
+        }
 
         const groupBy = groupBySelect.value;
 
@@ -65,6 +76,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
         let labels = [];
         let values = [];
+
+        const calculateValue = (waterLevelCm) => {
+            if (yAxisType === 'capacity') {
+                return waterLevelCm * length * width / 1000;
+            }
+            return waterLevelCm;
+        };
 
         if (groupBy === 'minutes') {
             labels = entries.map(entry => {
@@ -74,7 +92,8 @@ document.addEventListener("DOMContentLoaded", function() {
             values = entries.map(entry => {
                 const distance = parseFloat(entry.field1);
                 const waterLevel = totalDepth - distance;
-                return parseFloat(waterLevel.toFixed(2));
+                const finalValue = calculateValue(waterLevel);
+                return parseFloat(finalValue.toFixed(2));
             });
         } else if (groupBy === 'hours') {
             const hourlyData = {}; // { 'YYYY-MM-DD HH:00': { sum: X, count: Y } }
@@ -94,7 +113,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
             const sortedHours = Object.keys(hourlyData).sort();
             labels = sortedHours;
-            values = sortedHours.map(hour => parseFloat((hourlyData[hour].sum / hourlyData[hour].count).toFixed(2)));
+            values = sortedHours.map(hour => {
+                const avgWaterLevel = hourlyData[hour].sum / hourlyData[hour].count;
+                const finalValue = calculateValue(avgWaterLevel);
+                return parseFloat(finalValue.toFixed(2));
+            });
         } else if (groupBy === 'days') {
             const dailyData = {}; // { 'YYYY-MM-DD': { sum: X, count: Y } }
             entries.forEach(entry => {
@@ -108,23 +131,29 @@ document.addEventListener("DOMContentLoaded", function() {
                     dailyData[day].sum += waterLevel;
                     dailyData[day].count++;
                 }
-            });
+});
 
             const sortedDays = Object.keys(dailyData).sort();
             labels = sortedDays;
-            values = sortedDays.map(day => parseFloat((dailyData[day].sum / dailyData[day].count).toFixed(2)));
+            values = sortedDays.map(day => {
+                const avgWaterLevel = dailyData[day].sum / dailyData[day].count;
+                const finalValue = calculateValue(avgWaterLevel);
+                return parseFloat(finalValue.toFixed(2));
+            });
         }
 
         if (chart) {
             chart.destroy();
         }
 
+        const yAxisLabel = yAxisType === 'capacity' ? 'Water capacity (liter)' : 'Water level (cm)';
+
         chart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Water level (cm)',
+                    label: yAxisLabel,
                     data: values,
                     borderColor: 'rgba(75, 192, 192, 1)',
                     backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -144,7 +173,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     y: {
                         title: {
                             display: true,
-                            text: 'Water level (cm)'
+                            text: yAxisLabel
                         },
                         beginAtZero: true
                     }
@@ -186,6 +215,7 @@ document.addEventListener("DOMContentLoaded", function() {
             width: widthInput.value,
             maxDepth: maxDepthInput.value,
             topMargin: topMarginInput.value,
+            yAxisType: yAxisTypeSelect.value,
             groupBy: groupBySelect.value,
             lastDays: lastDaysInput.value,
             autoRefresh: autoRefreshInput.value,
@@ -201,6 +231,7 @@ document.addEventListener("DOMContentLoaded", function() {
         widthInput.value = config.width;
         maxDepthInput.value = config.maxDepth;
         topMarginInput.value = config.topMargin;
+        yAxisTypeSelect.value = config.yAxisType;
         groupBySelect.value = config.groupBy;
         lastDaysInput.value = config.lastDays;
         autoRefreshInput.value = config.autoRefresh;
@@ -220,7 +251,7 @@ document.addEventListener("DOMContentLoaded", function() {
     resetAutoRefresh();
 
     // Add event listeners
-    const configInputs = [lengthInput, widthInput, maxDepthInput, topMarginInput, groupBySelect, lastDaysInput, autoRefreshInput];
+    const configInputs = [lengthInput, widthInput, maxDepthInput, topMarginInput, yAxisTypeSelect, groupBySelect, lastDaysInput, autoRefreshInput];
     configInputs.forEach(input => {
         input.addEventListener('change', () => {
             saveConfig();
