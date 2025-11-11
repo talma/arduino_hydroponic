@@ -13,31 +13,52 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // Chart logic
+    // --- Configuration and Chart Logic ---
+
+    // DOM Elements
+    const lengthInput = document.getElementById('length');
+    const widthInput = document.getElementById('width');
     const maxDepthInput = document.getElementById('maxDepth');
     const topMarginInput = document.getElementById('topMargin');
     const groupBySelect = document.getElementById('groupBy');
     const lastDaysInput = document.getElementById('lastDays');
+    const autoRefreshInput = document.getElementById('autoRefresh');
+    const resetConfigBtn = document.getElementById('resetConfigBtn');
 
     const ctx = document.getElementById('distanceChart').getContext('2d');
     let chart;
     let apiData;
+    let refreshIntervalId = null;
+
+    const defaultConfig = {
+        length: 114,
+        width: 30,
+        maxDepth: 40,
+        topMargin: 3,
+        groupBy: 'hours',
+        lastDays: 7,
+        autoRefresh: 10
+    };
 
     function createOrUpdateChart() {
         if (!apiData || !apiData.feeds || apiData.feeds.length === 0) {
             document.getElementById('last-read-timestamp').textContent = 'Last read: No data available';
+            document.getElementById('last-read-level').textContent = '';
             if (chart) chart.destroy();
             return;
         }
 
-        // Update last read timestamp
-        const lastEntry = apiData.feeds[apiData.feeds.length - 1];
-        const lastReadDate = new Date(lastEntry.created_at);
-        document.getElementById('last-read-timestamp').textContent = `Last read: ${lastReadDate.toLocaleString()}`;
-
         const maxDepth = parseFloat(maxDepthInput.value) || 0;
         const topMargin = parseFloat(topMarginInput.value) || 0;
         const totalDepth = maxDepth + topMargin;
+
+        // Update last read timestamp and level
+        const lastEntry = apiData.feeds[apiData.feeds.length - 1];
+        const lastReadDate = new Date(lastEntry.created_at);
+        const lastWaterLevel = totalDepth - parseFloat(lastEntry.field1);
+        document.getElementById('last-read-timestamp').textContent = `Last read: ${lastReadDate.toLocaleString()}`;
+        document.getElementById('last-read-level').textContent = `Last water level: ${lastWaterLevel.toFixed(2)} cm`;
+
         const groupBy = groupBySelect.value;
 
         const entries = apiData.feeds;
@@ -145,13 +166,73 @@ document.addEventListener("DOMContentLoaded", function() {
             .catch(error => console.error("Error fetching data:", error));
     }
 
-    // Initial fetch
+    function resetAutoRefresh() {
+        if (refreshIntervalId) {
+            clearInterval(refreshIntervalId);
+        }
+        const intervalSeconds = parseInt(autoRefreshInput.value, 10);
+        if (intervalSeconds > 0) {
+            const intervalMilliseconds = intervalSeconds * 1000;
+            refreshIntervalId = setInterval(fetchDataAndUpdateChart, intervalMilliseconds);
+        }
+    }
+
+    // --- Configuration Management ---
+
+    function saveConfig() {
+        const currentConfig = {
+            length: lengthInput.value,
+            width: widthInput.value,
+            maxDepth: maxDepthInput.value,
+            topMargin: topMarginInput.value,
+            groupBy: groupBySelect.value,
+            lastDays: lastDaysInput.value,
+            autoRefresh: autoRefreshInput.value,
+        };
+        sessionStorage.setItem('hydroConfig', JSON.stringify(currentConfig));
+    }
+
+    function loadConfig() {
+        const savedConfig = JSON.parse(sessionStorage.getItem('hydroConfig'));
+        const config = savedConfig || defaultConfig;
+
+        lengthInput.value = config.length;
+        widthInput.value = config.width;
+        maxDepthInput.value = config.maxDepth;
+        topMarginInput.value = config.topMargin;
+        groupBySelect.value = config.groupBy;
+        lastDaysInput.value = config.lastDays;
+        autoRefreshInput.value = config.autoRefresh;
+    }
+
+    function resetConfig() {
+        sessionStorage.removeItem('hydroConfig');
+        loadConfig(); // Loads defaults
+        fetchDataAndUpdateChart();
+        resetAutoRefresh();
+    }
+
+    // --- Initialization and Event Listeners ---
+
+    loadConfig();
     fetchDataAndUpdateChart();
+    resetAutoRefresh();
 
     // Add event listeners
-    maxDepthInput.addEventListener('input', createOrUpdateChart);
-    topMarginInput.addEventListener('input', createOrUpdateChart);
-    groupBySelect.addEventListener('change', createOrUpdateChart);
-    lastDaysInput.addEventListener('change', fetchDataAndUpdateChart);
+    const configInputs = [lengthInput, widthInput, maxDepthInput, topMarginInput, groupBySelect, lastDaysInput, autoRefreshInput];
+    configInputs.forEach(input => {
+        input.addEventListener('change', () => {
+            saveConfig();
+            if (input === lastDaysInput) {
+                fetchDataAndUpdateChart();
+            } else if (input === autoRefreshInput) {
+                resetAutoRefresh();
+            } else {
+                createOrUpdateChart();
+            }
+        });
+    });
+
+    resetConfigBtn.addEventListener('click', resetConfig);
 });
 

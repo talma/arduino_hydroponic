@@ -9,7 +9,8 @@
 <body>
   <h2>Water Tank Level</h2>
   <canvas id="distanceChart"></canvas>
-  <p id="last-read-timestamp" style="text-align: center;"></p>
+  <p id="last-read-timestamp" style="text-align: center; margin-bottom: 0;"></p>
+  <p id="last-read-level" style="text-align: center; margin-top: 4px;"></p>
 
   <button type="button" class="collapsible">Water Tank Configuration</button>
   <div class="content">
@@ -46,7 +47,13 @@
       <label for="lastDays">Show last:</label>
       <span><input type="number" id="lastDays" name="lastDays" value="7"> days</span>
     </div>
+    <div class="config-row">
+      <label for="autoRefresh">Auto refresh interval:</label>
+      <span><input type="number" id="autoRefresh" name="autoRefresh" value="10"> sec</span>
+    </div>
   </div>
+
+  <button type="button" id="resetConfigBtn" style="margin-top: 10px;">Reset Configuration</button>
 
   <script src="script.js"></script>
 </body>
